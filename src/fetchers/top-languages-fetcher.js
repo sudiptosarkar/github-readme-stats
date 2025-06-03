@@ -24,7 +24,7 @@ const fetcher = (variables, token) => {
   return request(
     {
       query: `
-      query userInfo($login: String!) {
+      query userInfo($login: String!, $includeOwnedOrgs: Boolean!) {
         user(login: $login) {
           # fetch only owner repos & not forks
           repositories(ownerAffiliations: OWNER, isFork: false, first: 100) {
@@ -36,6 +36,25 @@ const fetcher = (variables, token) => {
                   node {
                     color
                     name
+                  }
+                }
+              }
+            }
+          }
+          organizations(first: 10) @include(if: $includeOwnedOrgs) {
+            nodes {
+              viewerCanAdminister
+              repositories(ownerAffiliations: OWNER, first: 100) {
+                nodes {
+                  name
+                  languages(first: 20, orderBy: {field: SIZE, direction: DESC}) {
+                    edges {
+                      size
+                      node {
+                        color
+                        name
+                      }
+                    }
                   }
                 }
               }
@@ -60,6 +79,7 @@ const fetcher = (variables, token) => {
  * Fetch top languages for a given username.
  *
  * @param {string} username GitHub username.
+ * @param {boolean} includeOwnedOrgs Include repositories from Owned Organizations
  * @param {string[]} exclude_repo List of repositories to exclude.
  * @param {number} size_weight Weightage to be given to size.
  * @param {number} count_weight Weightage to be given to count.
@@ -67,6 +87,7 @@ const fetcher = (variables, token) => {
  */
 const fetchTopLanguages = async (
   username,
+  includeOwnedOrgs = false,
   exclude_repo = [],
   size_weight = 1,
   count_weight = 0,
@@ -75,7 +96,7 @@ const fetchTopLanguages = async (
     throw new MissingParamError(["username"]);
   }
 
-  const res = await retryer(fetcher, { login: username });
+  const res = await retryer(fetcher, { login: username, includeOwnedOrgs });
 
   if (res.data.errors) {
     logger.error(res.data.errors);
@@ -98,6 +119,17 @@ const fetchTopLanguages = async (
   }
 
   let repoNodes = res.data.data.user.repositories.nodes;
+  if (res.data.data.user.organizations) {
+    let orgNodes = res.data.data.user.organizations.nodes.filter(
+      (orgNode) => orgNode.viewerCanAdminister,
+    );
+    let orgRepoNodes = [];
+    orgNodes.forEach((orgNode) =>
+      orgRepoNodes.push(orgNode.repositories.nodes),
+    );
+    orgRepoNodes = orgRepoNodes.reduce((acc, val) => acc.concat(val), []);
+    repoNodes = repoNodes.concat(orgRepoNodes);
+  }
   let repoToHide = {};
 
   // populate repoToHide map for quick lookup

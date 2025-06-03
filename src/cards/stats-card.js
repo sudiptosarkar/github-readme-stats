@@ -202,6 +202,7 @@ const getStyles = ({
 const renderStatsCard = (stats, options = {}) => {
   const {
     name,
+    totalOwnedOrgs,
     totalStars,
     totalCommits,
     totalIssues,
@@ -222,6 +223,7 @@ const renderStatsCard = (stats, options = {}) => {
     card_width,
     hide_rank = false,
     include_all_commits = false,
+    include_owned_orgs = false,
     line_height = 25,
     title_color,
     ring_color,
@@ -285,6 +287,15 @@ const renderStatsCard = (stats, options = {}) => {
     value: totalPRs,
     id: "prs",
   };
+
+  if (include_owned_orgs) {
+    STATS.orgs = {
+      icon: icons.organizations,
+      label: i18n.t("statcard.organizations"),
+      value: totalOwnedOrgs,
+      id: "organizations",
+    };
+  }
 
   if (show.includes("prs_merged")) {
     STATS.prs_merged = {
