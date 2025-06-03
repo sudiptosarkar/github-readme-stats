@@ -17,10 +17,11 @@ import {
  * Top languages fetcher object.
  *
  * @param {AxiosRequestHeaders} variables Fetcher variables.
+ * @param {object} opts Configuration options
  * @param {string} token GitHub token.
  * @returns {Promise<AxiosResponse>} Languages fetcher response.
  */
-const fetcher = (variables, token) => {
+const fetcher = (variables, opts, token) => {
   return request(
     {
       query: `
@@ -40,6 +41,30 @@ const fetcher = (variables, token) => {
                 }
               }
             }
+          }
+          ${
+            opts.include_owned_orgs
+              ? `
+          organizations(first: 10) {
+            nodes {
+              viewerCanAdminister
+              repositories(ownerAffiliations: OWNER, first: 100) {
+                nodes {
+                  name
+                  languages(first: 20, orderBy: {field: SIZE, direction: DESC}) {
+                    edges {
+                      size
+                      node {
+                        color
+                        name
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }`
+              : ""
           }
         }
       }
@@ -68,6 +93,7 @@ const fetcher = (variables, token) => {
 const fetchTopLanguages = async (
   username,
   exclude_repo = [],
+  opts = { include_owned_orgs: false },
   size_weight = 1,
   count_weight = 0,
 ) => {
@@ -75,7 +101,7 @@ const fetchTopLanguages = async (
     throw new MissingParamError(["username"]);
   }
 
-  const res = await retryer(fetcher, { login: username });
+  const res = await retryer(fetcher, { login: username }, opts);
 
   if (res.data.errors) {
     logger.error(res.data.errors);
@@ -98,6 +124,17 @@ const fetchTopLanguages = async (
   }
 
   let repoNodes = res.data.data.user.repositories.nodes;
+  if (res.data.data.user.organizations) {
+    let orgNodes = res.data.data.user.organizations.nodes.filter(
+      (orgNode) => orgNode.viewerCanAdminister,
+    );
+    let orgRepoNodes = [];
+    orgNodes.forEach((orgNode) =>
+      orgRepoNodes.push(orgNode.repositories.nodes),
+    );
+    orgRepoNodes = orgRepoNodes.reduce((acc, val) => acc.concat(val), []);
+    repoNodes = repoNodes.concat(orgRepoNodes);
+  }
   let repoToHide = {};
 
   // populate repoToHide map for quick lookup

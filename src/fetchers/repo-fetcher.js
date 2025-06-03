@@ -14,7 +14,7 @@ import { MissingParamError, request } from "../common/utils.js";
  * @param {string} token GitHub token.
  * @returns {Promise<AxiosResponse>} The response.
  */
-const fetcher = (variables, token) => {
+const fetcher = (variables, opts, token) => {
   return request(
     {
       query: `

@@ -22,7 +22,7 @@ export const RATE_LIMIT_SECONDS = 60 * 5; // 1 request per 5 minutes
  * @param {string} token GitHub token.
  * @returns {Promise<AxiosResponse>} The response.
  */
-const uptimeFetcher = (variables, token) => {
+const uptimeFetcher = (variables, opts, token) => {
   return request(
     {
       query: `

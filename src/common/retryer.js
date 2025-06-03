@@ -10,7 +10,7 @@ const RETRIES = process.env.NODE_ENV === "test" ? 7 : PATs;
 
 /**
  * @typedef {import("axios").AxiosResponse} AxiosResponse Axios response.
- * @typedef {(variables: object, token: string) => Promise<AxiosResponse>} FetcherFunction Fetcher function.
+ * @typedef {(variables: object, opts: object, token: string) => Promise<AxiosResponse>} FetcherFunction Fetcher function.
  */
 
 /**
@@ -18,10 +18,11 @@ const RETRIES = process.env.NODE_ENV === "test" ? 7 : PATs;
  *
  * @param {FetcherFunction} fetcher The fetcher function.
  * @param {object} variables Object with arguments to pass to the fetcher function.
+ * @param {object} opts Optional Configuration Options
  * @param {number} retries How many times to retry.
  * @returns {Promise<T>} The response from the fetcher function.
  */
-const retryer = async (fetcher, variables, retries = 0) => {
+const retryer = async (fetcher, variables, opts = {}, retries = 0) => {
   if (!RETRIES) {
     throw new CustomError("No GitHub API tokens found", CustomError.NO_TOKENS);
   }
@@ -35,6 +36,7 @@ const retryer = async (fetcher, variables, retries = 0) => {
     // try to fetch with the first token since RETRIES is 0 index i'm adding +1
     let response = await fetcher(
       variables,
+      opts,
       process.env[`PAT_${retries + 1}`],
       retries,
     );
@@ -48,7 +50,7 @@ const retryer = async (fetcher, variables, retries = 0) => {
       logger.log(`PAT_${retries + 1} Failed`);
       retries++;
       // directly return from the function
-      return retryer(fetcher, variables, retries);
+      return retryer(fetcher, variables, opts, retries);
     }
 
     // finally return the response
@@ -65,7 +67,7 @@ const retryer = async (fetcher, variables, retries = 0) => {
       logger.log(`PAT_${retries + 1} Failed`);
       retries++;
       // directly return from the function
-      return retryer(fetcher, variables, retries);
+      return retryer(fetcher, variables, opts, retries);
     } else {
       return err.response;
     }

@@ -86,9 +86,10 @@ const GRAPHQL_STATS_QUERY = `
  *
  * @param {object} variables Fetcher variables.
  * @param {string} token GitHub token.
+ * @param {object} opts Optional Configuration Options
  * @returns {Promise<AxiosResponse>} Axios response.
  */
-const fetcher = (variables, token) => {
+const fetcher = (variables, opts, token) => {
   const query = variables.after ? GRAPHQL_REPOS_QUERY : GRAPHQL_STATS_QUERY;
   return request(
     {
@@ -174,7 +175,7 @@ const totalCommitsFetcher = async (username) => {
   }
 
   // https://developer.github.com/v3/search/#search-commits
-  const fetchTotalCommits = (variables, token) => {
+  const fetchTotalCommits = (variables, opts, token) => {
     return axios({
       method: "get",
       url: `https://api.github.com/search/commits?q=author:${variables.login}`,

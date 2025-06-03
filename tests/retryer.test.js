@@ -15,7 +15,7 @@ const fetcherFail = jest.fn(() => {
   );
 });
 
-const fetcherFailOnSecondTry = jest.fn((_vars, _token, retries) => {
+const fetcherFailOnSecondTry = jest.fn((_vars, _opts, _token, retries) => {
   return new Promise((res) => {
     // faking rate limit
     if (retries < 1) {

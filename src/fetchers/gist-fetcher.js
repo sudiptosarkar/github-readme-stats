@@ -37,9 +37,10 @@ query gistInfo($gistName: String!) {
  *
  * @param {AxiosRequestHeaders} variables Fetcher variables.
  * @param {string} token GitHub token.
+ * @param {object} opts Optional Configuration Options
  * @returns {Promise<AxiosResponse>} The response.
  */
-const fetcher = async (variables, token) => {
+const fetcher = async (variables, opts, token) => {
   return await request(
     { query: QUERY, variables },
     { Authorization: `token ${token}` },
