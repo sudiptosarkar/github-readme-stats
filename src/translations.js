@@ -108,6 +108,9 @@ const statCardLocales = ({ name, apostrophe }) => {
       vi: "Tổng Số Sao",
       se: "Antal intjänade stjärnor",
     },
+    "statcard.organizations": {
+      en: "Total Owned Organizations",
+    },
     "statcard.commits": {
       ar: "مجموع الحفظ",
       cn: "累计提交数（commit）",

@@ -34,7 +34,7 @@ describe("Test Retryer", () => {
   });
 
   it("retryer should return value and have 2 retries", async () => {
-    let res = await retryer(fetcherFailOnSecondTry, {});
+    let res = await retryer(fetcherFailOnSecondTry);
 
     expect(fetcherFailOnSecondTry).toBeCalledTimes(2);
     expect(res).toStrictEqual({ data: "ok" });

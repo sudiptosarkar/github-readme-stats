@@ -29,10 +29,29 @@ const GRAPHQL_REPOS_FIELD = `
       endCursor
     }
   }
+  organizations(first: 10) @include(if: $includeOwnedOrgs) {
+    nodes {
+      viewerCanAdminister
+      name
+      repositories(
+        ownerAffiliations: OWNER
+        first: 100
+        orderBy: {direction: DESC, field: STARGAZERS}
+        after: $after
+      ) {
+        nodes {
+          name
+          stargazers {
+            totalCount
+          }
+        }
+      }
+    }
+  }
 `;
 
 const GRAPHQL_REPOS_QUERY = `
-  query userInfo($login: String!, $after: String) {
+  query userInfo($login: String!, $after: String, $includeOwnedOrgs: Boolean!) {
     user(login: $login) {
       ${GRAPHQL_REPOS_FIELD}
     }
@@ -40,7 +59,7 @@ const GRAPHQL_REPOS_QUERY = `
 `;
 
 const GRAPHQL_STATS_QUERY = `
-  query userInfo($login: String!, $after: String, $includeMergedPullRequests: Boolean!, $includeDiscussions: Boolean!, $includeDiscussionsAnswers: Boolean!) {
+  query userInfo($login: String!, $after: String, $includeMergedPullRequests: Boolean!, $includeDiscussions: Boolean!, $includeDiscussionsAnswers: Boolean!, $includeOwnedOrgs: Boolean!) {
     user(login: $login) {
       name
       login
@@ -109,6 +128,7 @@ const fetcher = (variables, token) => {
  * @param {boolean} variables.includeMergedPullRequests Include merged pull requests.
  * @param {boolean} variables.includeDiscussions Include discussions.
  * @param {boolean} variables.includeDiscussionsAnswers Include discussions answers.
+ * @param {boolean} variables.includeOwnedOrgs Include repositories from Owned Organizations
  * @returns {Promise<AxiosResponse>} Axios response.
  *
  * @description This function supports multi-page fetching if the 'FETCH_MULTI_PAGE_STARS' environment variable is set to true.
@@ -118,6 +138,7 @@ const statsFetcher = async ({
   includeMergedPullRequests,
   includeDiscussions,
   includeDiscussionsAnswers,
+  includeOwnedOrgs,
 }) => {
   let stats;
   let hasNextPage = true;
@@ -130,6 +151,7 @@ const statsFetcher = async ({
       includeMergedPullRequests,
       includeDiscussions,
       includeDiscussionsAnswers,
+      includeOwnedOrgs,
     };
     let res = await retryer(fetcher, variables);
     if (res.data.errors) {
@@ -226,6 +248,7 @@ const fetchStats = async (
   include_merged_pull_requests = false,
   include_discussions = false,
   include_discussions_answers = false,
+  include_owned_orgs = false,
 ) => {
   if (!username) {
     throw new MissingParamError(["username"]);
@@ -234,6 +257,7 @@ const fetchStats = async (
   const stats = {
     name: "",
     totalPRs: 0,
+    totalOwnedOrgs: 0,
     totalPRsMerged: 0,
     mergedPRsPercentage: 0,
     totalReviews: 0,
@@ -251,6 +275,7 @@ const fetchStats = async (
     includeMergedPullRequests: include_merged_pull_requests,
     includeDiscussions: include_discussions,
     includeDiscussionsAnswers: include_discussions_answers,
+    includeOwnedOrgs: include_owned_orgs,
   });
 
   // Catch GraphQL errors.
@@ -313,6 +338,22 @@ const fetchStats = async (
     .reduce((prev, curr) => {
       return prev + curr.stargazers.totalCount;
     }, 0);
+
+  if (user.organizations) {
+    let orgRepoNodes = [];
+    user.organizations.nodes
+      .filter((orgNode) => orgNode.viewerCanAdminister)
+      .forEach((orgNode) => orgRepoNodes.push(orgNode.repositories.nodes));
+    stats.totalOwnedOrgs = user.organizations.nodes.filter(
+      (orgNode) => orgNode.viewerCanAdminister,
+    ).length;
+    orgRepoNodes = orgRepoNodes.reduce((acc, val) => acc.concat(val), []);
+    stats.totalStars += orgRepoNodes
+      .filter((data) => {
+        return !repoToHide.has(data.name);
+      })
+      .reduce((prev, curr) => prev + curr.stargazers.totalCount, 0);
+  }
 
   stats.rank = calculateRank({
     all_commits: include_all_commits,
